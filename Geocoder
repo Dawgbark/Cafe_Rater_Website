@@ -1,56 +1,188 @@
+from dataclasses import dataclass
+from typing import Iterable, List, Optional
+
 import geocoder
+import requests
 
-print("hello")
 
-def ask_location():
-    """Prompts user to indicate a city and state they are in."""
-    city = input("Enter the city you are in: ")
-    state = input("Enter the state you are in (abbreviation, e.g., CA for California): ")
-    location = f"{city}, {state}"
+@dataclass(frozen=True)
+class Coordinates:
+    """Latitude/longitude pair."""
+
+    latitude: float
+    longitude: float
+
+
+@dataclass
+class LocationGuess:
+    """Best-effort location data gathered from the user or their IP address."""
+
+ city: Optional[str] = None
+    state: Optional[str] = None
+    coordinates: Optional[Coordinates] = None
+
+@dataclass(frozen=True)
+class Cafe:
+    """Normalized café information returned from the Overpass API."""
+
+    name: str
+    address: str
+    coordinates: Optional[Coordinates] = None
+
+
+def ask_location() -> str:
+    """Prompt the user for their current city and state."""
+
+    city = input("Enter the city you are in: ").strip()
+    state = input(
+        "Enter the state or region you are in (abbreviation, e.g., CA for California): "
+    ).strip()
+    location = ", ".join(part for part in (city, state) if part)
     return location
 
-def get_live_location():
-    """Reports live location while on the app."""
-    g = geocoder.ip('me')
-    if g.ok:
-        return g.city, g.state
-    else:
-        return None, None
 
-def jimmy(key_words, history):
-    """
-    Detect negative and inappropriate comments through sentiment analysis.
-    If more than 70% of comments are negative, the user is flagged.
 
-    key_words: A list of words that indicate negative sentiment.
-    history: A list of user comments to analyze.
-    
-    Returns True if user history indicates trolling, otherwise False.
-    """
-    negative_count = 0
-    total_comments = len(history)
+def get_live_location() -> LocationGuess:
+    """Report the user's approximate live location based on their IP address."""
 
-    for comment in history:
-        if any(word in comment.lower() for word in key_words):
-            negative_count += 1
+    live_guess = LocationGuess()
+    ip_result = geocoder.ip("me")
+    if not ip_result.ok:
+        return live_guess
 
-    if total_comments == 0:
-        return False  # No comments to analyze
+    coordinates = None
+    if ip_result.latlng:
+        coordinates = Coordinates(latitude=ip_result.latlng[0], longitude=ip_result.latlng[1])
 
-    negative_ratio = negative_count / total_comments
-    return negative_ratio > 0.7  # Flag if more than 70% of comments are negative
+    return LocationGuess(
+        city=ip_result.city,
+        state=ip_result.state,
+        coordinates=coordinates,
+    )
+
+
+def geocode_location(location: str) -> Optional[Coordinates]:
+    """Convert a human-readable location string into latitude and longitude."""
+
+ if not location:
+        return None
+
+    geo_result = geocoder.osm(location)
+    if geo_result.ok and geo_result.latlng:
+        return Coordinates(latitude=geo_result.latlng[0], longitude=geo_result.latlng[1])
+
+    return None
+
+
+def find_nearby_cafes(
+    coordinates: Coordinates,
+    radius: int = 3000,
+    limit: int = 10,
+) -> List[Cafe]:
+    """Query the Overpass API for cafés near the supplied coordinates."""
+
+    overpass_url = "https://overpass-api.de/api/interpreter"
+    query = f"""
+    [out:json][timeout:25];
+    (
+      node["amenity"="cafe"](around:{radius},{coordinates.latitude},{coordinates.longitude});
+      way["amenity"="cafe"](around:{radius},{coordinates.latitude},{coordinates.longitude});
+      relation["amenity"="cafe"](around:{radius},{coordinates.latitude},{coordinates.longitude});
+    );
+    out center;
+  """
+
+ response = requests.post(overpass_url, data=query.encode("utf-8"), timeout=30)
+    response.raise_for_status()
+    raw_data = response.json()
+
+    cafes: List[Cafe] = []
+    for element in raw_data.get("elements", []):
+        tags = element.get("tags", {})
+        name = tags.get("name") or "Unnamed café"
+        address_parts = (
+            tags.get("addr:housenumber"),
+            tags.get("addr:street"),
+            tags.get("addr:city"),
+            tags.get("addr:state"),
+        )
+        address = ", ".join(part for part in address_parts if part)
+
+lat = element.get("lat") or element.get("center", {}).get("lat")
+        lon = element.get("lon") or element.get("center", {}).get("lon")
+        coords = None
+        if lat is not None and lon is not None:
+            coords = Coordinates(latitude=lat, longitude=lon)
+        cafes.append(Cafe(name=name, address=address, coordinates=coords))
+
+   if len(cafes) >= limit:
+            break
+
+    return cafes
+
+def jimmy(key_words: Iterable[str], history: Iterable[str]) -> bool:
+    """Flag a user if more than 70% of their comments contain a negative keyword."""
+
+    comments = list(history)
+    if not comments:
+        return False
+
+    negative = sum(
+        1 for comment in comments if any(word in comment.lower() for word in key_words)
+    )
+    return (negative / len(comments)) > 0.
 
 # Example usage
-if __name__ == "__main__":
-    # Location example
-    user_location = ask_location()
-    print("You entered:", user_location)
+def _display_live_location(live_location: LocationGuess) -> None:
+    """Print a summary of the detected live location."""
 
-    live_city, live_state = get_live_location()
-    if live_city and live_state:
-        print("Live location detected:", live_city, live_state)
+if live_location.city and live_location.state:
+        print(f"Live location detected: {live_location.city}, {live_location.state}")
     else:
         print("Could not detect live location.")
+
+
+def _resolve_coordinates(user_location: str, live_location: LocationGuess) -> Optional[Coordinates]:
+    """Determine the best coordinates to use for the café lookup."""
+
+    if live_location.coordinates:
+        return live_location.coordinates
+
+    geocoded = geocode_location(user_location)
+    if geocoded:
+        return geocoded
+
+    return None
+
+
+def main() -> None:
+    """Interactive entry point for the café lookup demo."""
+
+    user_location = ask_location()
+    print("You entered:", user_location or "(no location provided)")
+
+    live_location = get_live_location()
+    _display_live_location(live_location)
+
+    coordinates = _resolve_coordinates(user_location, live_location)
+    if not coordinates:
+        print("Unable to determine coordinates for the provided location.")
+        return
+
+    try:
+        cafes = find_nearby_cafes(coordinates)
+    except requests.RequestException as exc:
+        print("An error occurred while searching for cafés:", exc)
+        return
+
+    if not cafes:
+        print("No cafés found near your location within the search radius.")
+        return
+
+    print("Nearby cafés:")
+    for idx, cafe in enumerate(cafes, start=1):
+        address = cafe.address or "No address available"
+        print(f"  {idx}. {cafe.name} - {address}")
 
     # Troll detection example
     key_words = ["bad", "hate", "stupid", "useless", "idiot", "worst"]
@@ -59,8 +191,12 @@ if __name__ == "__main__":
         "This is the worst service ever",
         "I think this is stupid",
         "I love this!",
-        "This is useless"
+        "This is useless",
     ]
 
     is_troll = jimmy(key_words, user_history)
     print("Is the user a troll?", is_troll)
+
+
+if __name__ == "__main__":
+    main()
