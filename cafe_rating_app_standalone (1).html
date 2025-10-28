@@ -159,15 +159,36 @@
     }
 
     async function fetchCafesNear(lat,lon){
+      const chainPattern = '(Starbucks|Dunkin|Biggby Coffee)';
       const q = `[
-out:json][timeout:25];
-node(around:${RADIUS},${lat},${lon})[amenity=cafe];
-out body;`;
+[out:json][timeout:25];
+(
+  node(around:${RADIUS},${lat},${lon})[amenity~"^(cafe|coffee_shop)$"];
+  way(around:${RADIUS},${lat},${lon})[amenity~"^(cafe|coffee_shop)$"];
+  relation(around:${RADIUS},${lat},${lon})[amenity~"^(cafe|coffee_shop)$"];
+  node(around:${RADIUS},${lat},${lon})[shop=coffee];
+  way(around:${RADIUS},${lat},${lon})[shop=coffee];
+  relation(around:${RADIUS},${lat},${lon})[shop=coffee];
+  node(around:${RADIUS},${lat},${lon})[amenity=fast_food][brand~"${chainPattern}",i];
+  way(around:${RADIUS},${lat},${lon})[amenity=fast_food][brand~"${chainPattern}",i];
+  relation(around:${RADIUS},${lat},${lon})[amenity=fast_food][brand~"${chainPattern}",i];
+  node(around:${RADIUS},${lat},${lon})[amenity=fast_food][name~"${chainPattern}",i];
+  way(around:${RADIUS},${lat},${lon})[amenity=fast_food][name~"${chainPattern}",i];
+  relation(around:${RADIUS},${lat},${lon})[amenity=fast_food][name~"${chainPattern}",i];
+);
+out center;`;
       try{
         const res = await fetch(OVERPASS_URL, { method:'POST', body:q });
         if(!res.ok) throw new Error('Overpass error');
         const data = await res.json();
-        return data.elements;
+        return data.elements
+          .map(el=>{
+            const latVal = el.lat ?? el.center?.lat;
+            const lonVal = el.lon ?? el.center?.lon;
+            if(latVal == null || lonVal == null) return null;
+            return {...el, lat:latVal, lon:lonVal};
+          })
+          .filter(Boolean);
       }catch(err){ console.error(err); return [] }
     }
 
@@ -179,6 +200,20 @@ out body;`;
         map.setView([lat,lon],15);
         const places = await fetchCafesNear(lat,lon);
         refreshPlacesDisplay(places);
+        el('btn-locate').disabled = false; el('btn-locate').textContent='Use my location';
+      }, err=>{ alert('Unable to get location: '+err.message); el('btn-locate').disabled=false; el('btn-locate').textContent='Use my location' });
+    }
+
+    async function searchByText(text){
+      const q = encodeURIComponent(text+' cafe');
+      try{
+        const res = await fetch(`https://nominatim.openstreetmap.org/search.php?q=${q}&format=jsonv2&limit=1`);
+        const arr = await res.json();
+        if(!arr.length) return alert('Place not found');
+        const lat = parseFloat(arr[0].lat), lon = parseFloat(arr[0].lon);
+        map.setView([lat,lon],14);
+        const places = await fetchCafesNear(lat,lon);
+        refreshPlacesDisplay(places);       
         el('btn-locate').disabled = false; el('btn-locate').textContent='Use my location';
       }, err=>{ alert('Unable to get location: '+err.message); el('btn-locate').disabled=false; el('btn-locate').textContent='Use my location' });
     }
