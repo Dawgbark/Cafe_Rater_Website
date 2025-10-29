@@ -1,11 +1,21 @@
-/* Frontend logic for Cafe Scout geolocation search (new geolocation + search UI). */
-const DEFAULT_COORDS = { lat: 20, lon: 0 };
+/* Frontend logic for the Cafe Scout experience.
+ *
+ * Features:
+ *  - Geolocation based "Use my location" discovery.
+ *  - Free text search powered by OpenStreetMap's Nominatim service.
+ *  - Interactive Leaflet map paired with a modernized list UI.
+ */
+
+const DEFAULT_COORDS = { lat: 39.1031, lon: -84.512 }; // Cincinnati demo
 const TILE_LAYER_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const TILE_LAYER_ATTRIBUTION = "© OpenStreetMap contributors";
-const EARTH_RADIUS_METERS = 6371000;
+const EARTH_RADIUS_METERS = 6_371_000;
 
-const map = L.map("map").setView([DEFAULT_COORDS.lat, DEFAULT_COORDS.lon], 2);
-L.tileLayer(TILE_LAYER_URL, { attribution: TILE_LAYER_ATTRIBUTION, maxZoom: 19 }).addTo(map);
+const map = L.map("map").setView([DEFAULT_COORDS.lat, DEFAULT_COORDS.lon], 13);
+L.tileLayer(TILE_LAYER_URL, {
+  attribution: TILE_LAYER_ATTRIBUTION,
+  maxZoom: 19,
+}).addTo(map);
 
 const markersLayer = L.layerGroup().addTo(map);
 
@@ -23,6 +33,18 @@ let isInitialLoad = true;
 function setStatus(message, { isError = false } = {}) {
   statusEl.textContent = message || "";
   statusEl.classList.toggle("is-error", Boolean(isError));
+}
+
+function setLoading(button, isLoading, idleLabel) {
+  if (!button) return;
+  if (isLoading) {
+    button.dataset.label = button.textContent;
+    button.textContent = idleLabel || "Working…";
+  } else if (button.dataset.label) {
+    button.textContent = button.dataset.label;
+    delete button.dataset.label;
+  }
+  button.disabled = isLoading;
 }
 
 function clearResults() {
@@ -49,7 +71,8 @@ function formatDistance(distanceMeters) {
   if (distanceMeters < 1000) {
     return `${Math.round(distanceMeters)} m away`;
   }
-  return `${(distanceMeters / 1000).toFixed(distanceMeters < 10000 ? 1 : 0)} km away`;
+  const kilometers = distanceMeters / 1000;
+  return `${kilometers.toFixed(kilometers < 10 ? 1 : 0)} km away`;
 }
 
 function focusCafeOnMap(cafe, marker) {
@@ -75,56 +98,7 @@ function buildResultItem(cafe, distanceMeters, marker) {
 
   const distanceLabel = formatDistance(distanceMeters);
   if (distanceLabel) {
-    const distanceEl = document.createElement("span");
-    distanceEl.className = "result-distance";
-    distanceEl.textContent = distanceLabel;
-    header.appendChild(distanceEl);
-  }
-
-  item.appendChild(header);
-
-  if (cafe.address) {
-    const meta = document.createElement("p");
-    meta.className = "result-meta";
-    meta.textContent = cafe.address;
-    item.appendChild(meta);
-  }
-
-  const actions = document.createElement("div");
-  actions.className = "result-actions";
-
-  const viewBtn = document.createElement("button");
-  viewBtn.type = "button";
-  viewBtn.className = "btn-link";
-  viewBtn.textContent = "View on map";
-
-  const handleFocus = () => {
-    focusCafeOnMap(cafe, marker);
-  };
-
-  item.addEventListener("click", handleFocus);
-  item.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleFocus();
-    }
-  });
-
-  viewBtn.addEventListener("click", (event) => {
-    event.stopPropagation();
-    handleFocus();
-  });
-
-  actions.appendChild(viewBtn);
-  item.appendChild(actions);
-
-  return item;
-}
-
-function zoomForRadius(radius) {
-  if (radius <= 1500) return 15;
-  if (radius <= 3000) return 14;
-  if (radius <= 5000) return 13;
+@@ -128,98 +151,203 @@ function zoomForRadius(radius) {
   if (radius <= 8000) return 12;
   return 11;
 }
@@ -150,8 +124,10 @@ function renderCafes(cafes) {
 
   cafes.forEach((cafe) => {
     const marker = L.marker([cafe.lat, cafe.lon]).addTo(markersLayer);
-    marker.bindPopup(`<strong>${cafe.name || "Cafe"}</strong>${cafe.address ? `<br>${cafe.address}` : ""}`);
-    
+    marker.bindPopup(
+      `<strong>${cafe.name || "Cafe"}</strong>${cafe.address ? `<br>${cafe.address}` : ""}`
+    );
+
     const distance = origin
       ? calculateDistanceMeters(origin.lat, origin.lon, cafe.lat, cafe.lon)
       : null;
@@ -178,16 +154,118 @@ async function fetchCafes(lat, lon, radius) {
 async function loadCafes(lat, lon, radius, { recenter = true } = {}) {
   setStatus("Searching for cafés…");
   try {
+    currentLocation = { lat, lon };
     const cafes = await fetchCafes(lat, lon, radius);
     if (recenter) {
       map.setView([lat, lon], zoomForRadius(radius));
     }
-@@ -191,32 +275,40 @@ radiusSelect.addEventListener("change", () => {
-  if (currentLocation) {
-    loadCafes(currentLocation.lat, currentLocation.lon, parseInt(radiusSelect.value, 10), {
-      recenter: false,
-    });
+    renderCafes(cafes);
+  } catch (error) {
+    console.error(error);
+    setStatus("Unable to load cafés. Please try again.", { isError: true });
   }
+}
+
+async function geocodePlace(query) {
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", query);
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("limit", "1");
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      "Accept-Language": "en",
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Geocoding request failed");
+  }
+  const data = await response.json();
+  if (!Array.isArray(data) || !data.length) {
+    return null;
+  }
+  const match = data[0];
+  return {
+    lat: parseFloat(match.lat),
+    lon: parseFloat(match.lon),
+    displayName: match.display_name,
+  };
+}
+
+async function handleSearch() {
+  const query = searchInput.value.trim();
+  if (!query) {
+    setStatus("Type a city, neighborhood, or landmark to search.", { isError: true });
+    return;
+  }
+
+  setLoading(searchBtn, true, "Searching…");
+  setStatus("Locating place…");
+
+  try {
+    const location = await geocodePlace(`${query} cafe`);
+    if (!location) {
+      setStatus("Place not found. Try a different search.", { isError: true });
+      return;
+    }
+
+    const radius = parseInt(radiusSelect.value, 10) || 3000;
+    await loadCafes(location.lat, location.lon, radius, { recenter: true });
+  } catch (error) {
+    console.error(error);
+    setStatus("Search failed. Please try again.", { isError: true });
+  } finally {
+    setLoading(searchBtn, false);
+  }
+}
+
+function handleLocationSuccess(position) {
+  const { latitude, longitude } = position.coords;
+  const radius = parseInt(radiusSelect.value, 10) || 3000;
+  loadCafes(latitude, longitude, radius, { recenter: true });
+}
+
+function handleLocationError(error) {
+  console.error(error);
+  if (isInitialLoad) {
+    setStatus("Allow location access or search for a place to begin.", { isError: true });
+  } else {
+    setStatus(error.message || "Unable to access your location.", { isError: true });
+  }
+}
+
+function requestUserLocation() {
+  if (!navigator.geolocation) {
+    setStatus("Geolocation isn't supported by your browser.", { isError: true });
+    return;
+  }
+
+  setLoading(locateBtn, true, "Locating…");
+  setStatus("Finding your location…");
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      setLoading(locateBtn, false);
+      handleLocationSuccess(position);
+    },
+    (error) => {
+      setLoading(locateBtn, false);
+      handleLocationError(error);
+    },
+    {
+      enableHighAccuracy: false,
+      timeout: 15_000,
+      maximumAge: 60_000,
+    }
+  );
+}
+
+radiusSelect.addEventListener("change", () => {
+  if (!currentLocation) {
+    return;
+  }
+  const radius = parseInt(radiusSelect.value, 10) || 3000;
+  loadCafes(currentLocation.lat, currentLocation.lon, radius, { recenter: false });
 });
 
 locateBtn.addEventListener("click", () => {
