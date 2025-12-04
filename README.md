@@ -37,6 +37,16 @@ All external HTTP calls are stubbed in the tests, so no network is required. Cur
 - Filtering to exclude closed/abandoned cafés and deduplicate objects.
 - Leaflet map synchronized with a styled results list that shows distances and centers the map on selection.
 
+## Standalone HTML preview
+You can try the client-only prototype without running Flask:
+
+1. Download `cafe_rating_app_standalone.html` (save it anywhere on your computer).
+2. Double-click the file to open it in a modern desktop browser like Chrome, Edge, or Firefox.
+3. Allow location access when prompted. If you block it, the page automatically loads cafes near the default map view so you can still see the experience.
+4. Optionally type a city or landmark in the search box and click **Search** to find cafes elsewhere.
+
+If you open the file and only see the source code instead of the page, make sure the filename ends with `.html` and that your browser isn't set to download rather than open HTML files.
+
 ## Demo and artifacts
 - Brand logo (used at the top of the page): [`static/cafe-rater-logo.png`](static/cafe-rater-logo.png)
 )
