@@ -537,7 +537,9 @@
       function handleLocationError(error) {
         console.error(error);
         if (isInitialLoad) {
-          setStatus("Allow location access or search for a place to begin.", { isError: true });
+          setStatus("Location blocked. Showing cafes near the default view.", { isError: true });
+          const radius = parseInt(radiusSelect.value, 10) || 3000;
+          loadCafes(DEFAULT_COORDS.lat, DEFAULT_COORDS.lon, radius, { recenter: true });
         } else {
           setStatus(error.message || "Unable to access your location.", { isError: true });
         }
