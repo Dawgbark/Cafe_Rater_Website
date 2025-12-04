@@ -1,192 +1,4107 @@
-diff --git a/temp_preview.html b/temp_preview.html
-new file mode 100644
-index 0000000000000000000000000000000000000000..23763fd04503781c6dc3a252f158ca5dc071ac6e
---- /dev/null
-+++ b/temp_preview.html
-@@ -0,0 +1,186 @@
-+<!doctype html>
-+<html lang="en">
-+  <head>
-+    <meta charset="utf-8" />
-+    <meta name="viewport" content="width=device-width, initial-scale=1" />
-+    <title>Cafe Scout – Preview</title>
-+    <link
-+      rel="stylesheet"
-+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-+      integrity="sha512-sA+e2Xv5lZ8tft1kYyqS/fWznuaCG2lKT9OAXoJ2i8LojRxurx8WcN6iYG3PaY5E9O+V1YQUiSO1kzWw5o7WlA=="
-+      crossorigin=""
-+    />
-+    <style>
-+      body {
-+        margin: 0;
-+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-+        background: #f7f6f0;
-+        color: #1d1d1d;
-+      }
-+
-+      header {
-+        padding: 1rem 1.5rem 0.5rem;
-+        display: flex;
-+        flex-wrap: wrap;
-+        align-items: baseline;
-+        gap: 0.75rem;
-+      }
-+
-+      h1 {
-+        margin: 0;
-+        font-size: 1.4rem;
-+      }
-+
-+      .lead {
-+        margin: 0;
-+        color: #666;
-+        font-size: 0.95rem;
-+      }
-+
-+      main {
-+        display: grid;
-+        grid-template-columns: 2fr 1fr;
-+        gap: 1.25rem;
-+        padding: 0 1.5rem 1.5rem;
-+      }
-+
-+      #map {
-+        height: 70vh;
-+        min-height: 320px;
-+        border-radius: 12px;
-+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-+        overflow: hidden;
-+      }
-+
-+      .sidebar {
-+        background: #fff;
-+        border-radius: 12px;
-+        box-shadow: 0 6px 20px rgba(10, 10, 10, 0.05);
-+        padding: 1rem;
-+        display: flex;
-+        flex-direction: column;
-+        gap: 0.75rem;
-+        min-height: 70vh;
-+      }
-+
-+      .controls {
-+        display: flex;
-+        flex-wrap: wrap;
-+        gap: 0.5rem;
-+      }
-+
-+      input[type="text"] {
-+        flex: 1;
-+        min-width: 180px;
-+        padding: 0.6rem 0.75rem;
-+        border: 1px solid #dadada;
-+        border-radius: 10px;
-+      }
-+
-+      select,
-+      button {
-+        padding: 0.6rem 0.75rem;
-+        border-radius: 10px;
-+        border: none;
-+        cursor: pointer;
-+        font-weight: 600;
-+      }
-+
-+      button.primary {
-+        background: #2f6f4e;
-+        color: #fff;
-+      }
-+
-+      button.secondary {
-+        background: #f0f0f0;
-+        color: #333;
-+      }
-+
-+      button:disabled {
-+        opacity: 0.6;
-+        cursor: wait;
-+      }
-+
-+      #status {
-+        font-size: 0.9rem;
-+        color: #555;
-+        min-height: 1.2em;
-+      }
-+
-+      .results-list {
-+        flex: 1;
-+        overflow-y: auto;
-+      }
-+
-+      .result-item {
-+        padding: 0.75rem 0;
-+        border-bottom: 1px solid #f0f0f0;
-+      }
-+
-+      .result-item:last-child {
-+        border-bottom: none;
-+      }
-+
-+      .result-item h3 {
-+        margin: 0 0 0.3rem;
-+        font-size: 1rem;
-+      }
-+
-+      .result-item .meta {
-+        color: #666;
-+        font-size: 0.85rem;
-+      }
-+
-+      @media (max-width: 960px) {
-+        main {
-+          grid-template-columns: 1fr;
-+        }
-+
-+        #map,
-+        .sidebar {
-+          min-height: 50vh;
-+        }
-+      }
-+    </style>
-+  </head>
-+  <body>
-+    <header>
-+      <h1>Cafe Scout</h1>
-+      <p class="lead">Discover nearby cafés anywhere you are. Powered by OpenStreetMap.</p>
-+    </header>
-+    <main>
-+      <div id="map"></div>
-+      <aside class="sidebar">
-+        <!-- Controls added for global geolocation + manual search -->
-+        <div class="controls">
-+          <button id="btn-locate" class="primary" type="button">Use my location</button>
-+          <input
-+            id="search-input"
-+            type="text"
-+            name="q"
-+            placeholder="Search a place…"
-+            autocomplete="off"
-+          />
-+          <button id="btn-search" class="secondary" type="button">Search</button>
-+          <select id="radius-select" aria-label="Search radius">
-+            <option value="1000">1 km</option>
-+            <option value="2000">2 km</option>
-+            <option value="3000" selected>3 km</option>
-+            <option value="5000">5 km</option>
-+            <option value="8000">8 km</option>
-+            <option value="10000">10 km</option>
-+          </select>
-+        </div>
-+        <div id="status"></div>
-+        <div class="results-list" id="results"></div>
-+      </aside>
-+    </main>
-+
-+    <script
-+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-+      integrity="sha512-vI7J3gFQ0pFB70dNDO7xjoMnIKPQ4j/wcgUp3NEiqPFcAckBW4iigFsMghvYDn8ApX2HFqcks8uuSS4o6Zh4qQ=="
-+      crossorigin=""
-+    ></script>
-+    <script src="static/app.js" defer></script>
-+  </body>
-+</html>
+<!doctype html>
+
+
+<html lang="en">
+
+
+ <head>
+
+
+   <meta charset="utf-8" />
+
+
+   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+   <title>Cafe Scout &mdash; Feature Showcase</title>
+
+
+   <link
+
+
+     rel="stylesheet"
+
+
+     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+
+
+     crossorigin=""
+
+
+   />
+
+
+   <style>
+
+
+     :root {
+
+
+       color-scheme: light;
+
+
+       font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
+
+
+         "Helvetica Neue", Arial, sans-serif;
+
+
+       --bg: #f6f7f8;
+
+
+       --panel: #ffffff;
+
+
+       --accent: #2f6f4e;
+
+
+       --accent-soft: rgba(47, 111, 78, 0.08);
+
+
+       --text: #202425;
+
+
+       --muted: #5d6466;
+
+
+       --border: #dde3e4;
+
+
+       --code: #f4f2ec;
+
+
+     }
+
+
+
+
+
+     * {
+
+
+       box-sizing: border-box;
+
+
+     }
+
+
+
+
+
+     body {
+
+
+       margin: 0;
+
+
+       background: radial-gradient(circle at top left, #ffffff 0%, var(--bg) 60%);
+
+
+       color: var(--text);
+
+
+       line-height: 1.6;
+
+
+     }
+
+
+
+
+
+     .wrap {
+
+
+       max-width: 1100px;
+
+
+       margin: 0 auto;
+
+
+       padding: 56px 24px 80px;
+
+
+       display: grid;
+
+
+       gap: 32px;
+
+
+     }
+
+
+
+
+
+     header.hero {
+
+
+       text-align: center;
+
+
+       padding: 48px 32px;
+
+
+       background: var(--panel);
+
+
+       border-radius: 24px;
+
+
+       box-shadow: 0 30px 60px -25px rgba(9, 30, 66, 0.25);
+
+
+       position: relative;
+
+
+       overflow: hidden;
+
+
+     }
+
+
+
+
+
+     header.hero::after {
+
+
+       content: "";
+
+
+       position: absolute;
+
+
+       inset: -140px -40px auto;
+
+
+       height: 280px;
+
+
+       background: conic-gradient(from 180deg at 50% 50%, rgba(47, 111, 78, 0.12), transparent 60%);
+
+
+       z-index: 0;
+
+
+     }
+
+
+
+
+
+     header.hero > * {
+
+
+       position: relative;
+
+
+       z-index: 1;
+
+
+     }
+
+
+
+
+
+     header.hero h1 {
+
+
+       font-size: clamp(2.4rem, 5vw, 3.1rem);
+
+
+       margin: 0;
+
+
+       color: var(--accent);
+
+
+     }
+
+
+
+
+
+     header.hero p.lead {
+
+
+       margin: 18px auto 0;
+
+
+       max-width: 720px;
+
+
+       font-size: clamp(1.05rem, 1.7vw, 1.25rem);
+
+
+       color: var(--muted);
+
+
+     }
+
+
+
+
+
+     header.hero .cta-row {
+
+
+       display: flex;
+
+
+       justify-content: center;
+
+
+       flex-wrap: wrap;
+
+
+       gap: 12px;
+
+
+       margin-top: 28px;
+
+
+     }
+
+
+
+
+
+     .btn {
+
+
+       background: var(--accent);
+
+
+       border-radius: 999px;
+
+
+       border: none;
+
+
+       color: #ffffff;
+
+
+       padding: 14px 30px;
+
+
+       font-size: 1rem;
+
+
+       cursor: pointer;
+
+
+       transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+
+     }
+
+
+
+
+
+     .btn.secondary {
+
+
+       background: #ffffff;
+
+
+       color: var(--accent);
+
+
+       border: 1px solid rgba(47, 111, 78, 0.4);
+
+
+     }
+
+
+
+
+
+     .btn:hover {
+
+
+       transform: translateY(-2px);
+
+
+       box-shadow: 0 18px 30px -20px var(--accent);
+
+
+     }
+
+
+
+
+
+     section {
+
+
+       background: var(--panel);
+
+
+       border-radius: 24px;
+
+
+       box-shadow: 0 26px 50px -30px rgba(15, 23, 42, 0.28);
+
+
+       padding: 36px;
+
+
+     }
+
+
+
+
+
+     section h2 {
+
+
+       margin-top: 0;
+
+
+       font-size: 1.8rem;
+
+
+       color: var(--accent);
+
+
+     }
+
+
+
+
+
+     .grid-two {
+
+
+       display: grid;
+
+
+       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+
+
+       gap: 28px;
+
+
+     }
+
+
+
+
+
+     .feature-card {
+
+
+       padding: 24px;
+
+
+       border-radius: 18px;
+
+
+       background: linear-gradient(145deg, rgba(47, 111, 78, 0.04), rgba(47, 111, 78, 0.12));
+
+
+       border: 1px solid rgba(47, 111, 78, 0.14);
+
+
+     }
+
+
+
+
+
+     .feature-card h3 {
+
+
+       margin: 0 0 12px;
+
+
+       font-size: 1.3rem;
+
+
+       color: var(--text);
+
+
+     }
+
+
+
+
+
+     .feature-card ul {
+
+
+       margin: 0;
+
+
+       padding-left: 20px;
+
+
+     }
+
+
+
+
+
+     .feature-card li {
+
+
+       margin-bottom: 10px;
+
+
+       color: var(--muted);
+
+
+     }
+
+
+
+
+
+     .feature-card code,
+
+
+     .code-inline {
+
+
+       background: var(--code);
+
+
+       padding: 2px 6px;
+
+
+       border-radius: 6px;
+
+
+       font-size: 0.95rem;
+
+
+     }
+
+
+
+
+
+     .feature-card .badge {
+
+
+       display: inline-flex;
+
+
+       align-items: center;
+
+
+       gap: 6px;
+
+
+       background: rgba(47, 111, 78, 0.18);
+
+
+       color: var(--accent);
+
+
+       padding: 4px 10px;
+
+
+       border-radius: 999px;
+
+
+       font-size: 0.85rem;
+
+
+       font-weight: 600;
+
+
+     }
+
+
+
+
+
+     .mock-app {
+
+
+       margin-top: 32px;
+
+
+       display: grid;
+
+
+       grid-template-columns: minmax(0, 1fr) 360px;
+
+
+       gap: 22px;
+
+
+       align-items: stretch;
+
+
+     }
+
+
+
+
+
+     .mock-map {
+
+
+       min-height: 420px;
+
+
+       height: 100%;
+
+
+       width: 100%;
+
+
+       border-radius: 22px;
+
+
+       overflow: hidden;
+
+
+       box-shadow: 0 32px 55px -32px rgba(47, 111, 78, 0.55);
+
+
+     }
+
+
+
+
+
+     .mock-panel {
+
+
+       background: var(--panel);
+
+
+       border-radius: 22px;
+
+
+       padding: 20px 22px 22px;
+
+
+       display: flex;
+
+
+       flex-direction: column;
+
+
+       gap: 16px;
+
+
+       box-shadow: 0 32px 55px -32px rgba(15, 23, 42, 0.35);
+
+
+     }
+
+
+
+
+
+     .demo-header {
+
+
+       display: flex;
+
+
+       flex-direction: column;
+
+
+       gap: 12px;
+
+
+     }
+
+
+
+
+
+     .demo-header h3 {
+
+
+       margin: 0;
+
+
+       font-size: 1.4rem;
+
+
+       color: var(--accent);
+
+
+     }
+
+
+
+
+
+     .demo-header p {
+
+
+       margin: 0;
+
+
+       color: var(--muted);
+
+
+       font-size: 0.98rem;
+
+
+     }
+
+
+
+
+
+     .demo-actions {
+
+
+       display: flex;
+
+
+       gap: 8px;
+
+
+       flex-wrap: wrap;
+
+
+     }
+
+
+
+
+
+     .demo-actions button {
+
+
+       flex: 1;
+
+
+       min-width: 150px;
+
+
+       border: none;
+
+
+       border-radius: 12px;
+
+
+       background: var(--accent);
+
+
+       color: #ffffff;
+
+
+       font-size: 0.95rem;
+
+
+       font-weight: 600;
+
+
+       padding: 10px 14px;
+
+
+       cursor: pointer;
+
+
+     }
+
+
+
+
+
+     .demo-search {
+
+
+       display: flex;
+
+
+       gap: 10px;
+
+
+     }
+
+
+
+
+
+     .demo-search input {
+
+
+       flex: 1;
+
+
+       padding: 10px 12px;
+
+
+       border-radius: 12px;
+
+
+       border: 1px solid var(--border);
+
+
+       font-size: 0.98rem;
+
+
+     }
+
+
+
+
+
+     .demo-search button {
+
+
+       padding: 10px 16px;
+
+
+       border: none;
+
+
+       border-radius: 12px;
+
+
+       background: var(--accent);
+
+
+       color: #ffffff;
+
+
+       font-weight: 600;
+
+
+       cursor: pointer;
+
+
+     }
+
+
+
+
+
+     .demo-select-row {
+
+
+       display: flex;
+
+
+       align-items: center;
+
+
+       gap: 10px;
+
+
+       font-size: 0.95rem;
+
+
+       color: var(--muted);
+
+
+     }
+
+
+
+
+
+     .demo-select-row label {
+
+
+       font-weight: 600;
+
+
+     }
+
+
+
+
+
+     .demo-select-row select {
+
+
+       flex: 1;
+
+
+       padding: 8px 10px;
+
+
+       border-radius: 10px;
+
+
+       border: 1px solid var(--border);
+
+
+     }
+
+
+
+
+
+     .status-line {
+
+
+       font-size: 0.95rem;
+
+
+       color: var(--muted);
+
+
+       background: rgba(47, 111, 78, 0.06);
+
+
+       border: 1px solid rgba(47, 111, 78, 0.18);
+
+
+       border-radius: 12px;
+
+
+       padding: 10px 12px;
+
+
+     }
+
+
+
+
+
+     .mock-results {
+
+
+       flex: 1;
+
+
+       overflow-y: auto;
+
+
+       display: grid;
+
+
+       gap: 14px;
+
+
+       padding-right: 6px;
+
+
+     }
+
+
+
+
+
+     .place-card {
+
+
+       border: 1px solid rgba(47, 111, 78, 0.16);
+
+
+       border-radius: 16px;
+
+
+       padding: 14px 16px 16px;
+
+
+       background: linear-gradient(145deg, rgba(47, 111, 78, 0.05), rgba(47, 111, 78, 0.12));
+
+
+       display: grid;
+
+
+       gap: 10px;
+
+
+     }
+
+
+
+
+
+     .place-card h4 {
+
+
+       margin: 0;
+
+
+       font-size: 1.05rem;
+
+
+       color: var(--text);
+
+
+     }
+
+
+
+
+
+     .place-meta {
+
+
+       font-size: 0.93rem;
+
+
+       color: var(--muted);
+
+
+     }
+
+
+
+
+
+     .rating-summary {
+
+
+       font-size: 0.9rem;
+
+
+       color: var(--muted);
+
+
+     }
+
+
+
+
+
+     .rating-form {
+
+
+       display: grid;
+
+
+       gap: 10px;
+
+
+     }
+
+
+
+
+
+     .rating-row {
+
+
+       display: flex;
+
+
+       align-items: center;
+
+
+       gap: 8px;
+
+
+       font-size: 0.9rem;
+
+
+     }
+
+
+
+
+
+     .rating-row label {
+
+
+       min-width: 72px;
+
+
+       text-transform: capitalize;
+
+
+     }
+
+
+
+
+
+     .rating-row input[type='range'] {
+
+
+       flex: 1;
+
+
+     }
+
+
+
+
+
+     .rating-row span {
+
+
+       width: 24px;
+
+
+       text-align: right;
+
+
+     }
+
+
+
+
+
+     .place-card button {
+
+
+       align-self: flex-start;
+
+
+       padding: 8px 12px;
+
+
+       border-radius: 10px;
+
+
+       border: none;
+
+
+       background: var(--accent);
+
+
+       color: #ffffff;
+
+
+       font-size: 0.9rem;
+
+
+       cursor: pointer;
+
+
+     }
+
+
+
+
+
+     .btn-muted {
+
+
+       background: #d8dedd;
+
+
+       color: #253330;
+
+
+       border: 1px solid rgba(37, 51, 48, 0.2);
+
+
+     }
+
+
+
+
+
+     .preview-actions {
+
+
+       display: flex;
+
+
+       flex-wrap: wrap;
+
+
+       gap: 14px;
+
+
+       align-items: center;
+
+
+     }
+
+
+
+
+
+     .preview-actions code {
+
+
+       padding: 10px 16px;
+
+
+       background: var(--code);
+
+
+       border-radius: 12px;
+
+
+       display: inline-flex;
+
+
+       align-items: center;
+
+
+       gap: 10px;
+
+
+     }
+
+
+
+
+
+     .architecture {
+
+
+       display: grid;
+
+
+       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+
+
+       gap: 24px;
+
+
+     }
+
+
+
+
+
+     .architecture article {
+
+
+       background: rgba(255, 255, 255, 0.65);
+
+
+       border-radius: 20px;
+
+
+       border: 1px solid var(--border);
+
+
+       padding: 20px;
+
+
+     }
+
+
+
+
+
+     .architecture h3 {
+
+
+       margin-top: 0;
+
+
+     }
+
+
+
+
+
+     .steps {
+
+
+       counter-reset: step;
+
+
+       display: grid;
+
+
+       gap: 18px;
+
+
+     }
+
+
+
+
+
+     .steps li {
+
+
+       list-style: none;
+
+
+       padding: 18px 22px;
+
+
+       border-radius: 18px;
+
+
+       border: 1px dashed rgba(47, 111, 78, 0.32);
+
+
+       background: rgba(47, 111, 78, 0.06);
+
+
+       position: relative;
+
+
+     }
+
+
+
+
+
+     .steps li::before {
+
+
+       counter-increment: step;
+
+
+       content: counter(step);
+
+
+       position: absolute;
+
+
+       inset: 12px auto auto 12px;
+
+
+       width: 28px;
+
+
+       height: 28px;
+
+
+       border-radius: 12px;
+
+
+       background: var(--accent);
+
+
+       color: #fff;
+
+
+       display: grid;
+
+
+       place-items: center;
+
+
+       font-weight: 600;
+
+
+     }
+
+
+
+
+
+     details {
+
+
+       border: 1px solid var(--border);
+
+
+       border-radius: 16px;
+
+
+       padding: 16px 20px;
+
+
+       background: rgba(255, 255, 255, 0.8);
+
+
+     }
+
+
+
+
+
+     details summary {
+
+
+       cursor: pointer;
+
+
+       font-weight: 600;
+
+
+       color: var(--accent);
+
+
+     }
+
+
+
+
+
+     .timeline {
+
+
+       display: grid;
+
+
+       gap: 16px;
+
+
+       margin-top: 24px;
+
+
+     }
+
+
+
+
+
+     .timeline-item {
+
+
+       background: rgba(47, 111, 78, 0.05);
+
+
+       border: 1px solid rgba(47, 111, 78, 0.18);
+
+
+       border-radius: 16px;
+
+
+       padding: 16px 20px;
+
+
+     }
+
+
+
+
+
+     .callout {
+
+
+       border-left: 4px solid var(--accent);
+
+
+       background: rgba(47, 111, 78, 0.04);
+
+
+       padding: 16px 22px;
+
+
+       border-radius: 12px;
+
+
+       color: var(--muted);
+
+
+     }
+
+
+
+
+
+     footer {
+
+
+       text-align: center;
+
+
+       color: var(--muted);
+
+
+       font-size: 0.95rem;
+
+
+       padding: 36px 0 12px;
+
+
+     }
+
+
+
+
+
+     @media (max-width: 720px) {
+
+
+       .wrap {
+
+
+         padding: 32px 18px 60px;
+
+
+       }
+
+
+
+
+
+       section {
+
+
+         padding: 28px 22px;
+
+
+       }
+
+
+
+
+
+       .mock-app {
+
+
+         grid-template-columns: 1fr;
+
+
+       }
+
+
+
+
+
+       .mock-map {
+
+
+         min-height: 320px;
+
+
+       }
+
+
+
+
+
+       .demo-actions {
+
+
+         flex-direction: column;
+
+
+       }
+
+
+
+
+
+       .mock-panel {
+
+
+         max-height: none;
+
+
+       }
+
+
+     }
+
+
+   </style>
+
+
+ </head>
+
+
+ <body>
+
+
+   <div class="wrap">
+
+
+     <header class="hero">
+
+
+       <h1>Cafe Scout Feature Showcase</h1>
+
+
+       <p class="lead">
+
+
+         This standalone HTML page is a talking piece for demos, investors, and teammates. It
+
+
+         walks through every major feature available in the Cafe Scout prototype&mdash;map-first
+
+
+         discovery, distance-aware search, client-side rating capture, resilient Overpass
+
+
+         queries, and a clean, accessible UI built with Flask, Leaflet, and vanilla JavaScript.
+
+
+       </p>
+
+
+       <div class="cta-row">
+
+
+         <button class="btn" onclick="document.getElementById('interactive-demo').scrollIntoView({behavior: 'smooth'})">
+
+
+           Jump to interactive preview
+
+
+         </button>
+
+
+         <button class="btn secondary" onclick="document.getElementById('feature-tour').scrollIntoView({behavior: 'smooth'})">
+
+
+           Explore the feature tour
+
+
+         </button>
+
+
+       </div>
+
+
+     </header>
+
+
+
+
+
+     <section id="interactive-demo">
+
+
+       <h2>Interactive Preview</h2>
+
+
+       <p>
+
+
+         This self-contained preview loads real map tiles, geolocates the browser (when permitted),
+
+
+         and queries the public Overpass and Nominatim endpoints directly from JavaScript. It is a
+
+
+         faithful slice of the production experience without requiring the Flask backend.
+
+
+       </p>
+
+
+       <div class="mock-app" role="region" aria-label="Cafe Scout interactive demo">
+
+
+         <div id="demo-map" class="mock-map" aria-label="Cafe map"></div>
+
+
+         <aside class="mock-panel">
+
+
+           <div class="demo-header">
+
+
+             <div>
+
+
+               <h3>Discover cafes near any location</h3>
+
+
+               <p>
+
+
+                 Search by neighborhood or tap <em>Use my location</em> to recenter the map. Ratings
+
+
+                 are saved in this browser so you can rehearse walkthroughs without a server.
+
+
+               </p>
+
+
+             </div>
+
+
+             <div class="demo-actions">
+
+
+               <button id="demo-locate" type="button">Use my location</button>
+
+
+               <button id="demo-clear" type="button" class="btn-muted">Clear local ratings</button>
+
+
+             </div>
+
+
+           </div>
+
+
+           <form class="demo-search" id="demo-search-form">
+
+
+             <input
+
+
+               id="demo-query"
+
+
+               type="text"
+
+
+               placeholder="Search city or neighborhood"
+
+
+               aria-label="Search city or neighborhood"
+
+
+             />
+
+
+             <button type="submit">Search</button>
+
+
+           </form>
+
+
+           <div class="demo-select-row">
+
+
+             <label for="demo-radius">Search radius</label>
+
+
+             <select id="demo-radius">
+
+
+               <option value="161">0.1 mi</option>
+
+
+               <option value="805">0.5 mi</option>
+
+
+               <option value="1609" selected>1 mi</option>
+
+
+               <option value="3219">2 mi</option>
+
+
+               <option value="8047">5 mi</option>
+
+
+               <option value="16093">10 mi</option>
+
+
+             </select>
+
+
+           </div>
+
+
+           <div id="demo-status" class="status-line">Initializing map&hellip;</div>
+
+
+           <div id="demo-results" class="mock-results" role="list">
+
+
+             <div class="status-line">Try searching for a city or sharing your location.</div>
+
+
+           </div>
+
+
+         </aside>
+
+
+       </div>
+
+
+       <p class="callout">
+
+
+         Because the preview reaches live public APIs, geolocation only works on <code>https://</code>
+
+
+         origins or <code>http://localhost</code>, and Overpass may throttle repeated requests. Run the
+
+
+         Flask server when you want cached results, enriched metadata, and rate-limit protection.
+
+
+       </p>
+
+
+       <div class="preview-actions">
+
+
+         <code><span>$</span> flask --app app run</code>
+
+
+         <code><span>$</span> open http://localhost:5000</code>
+
+
+       </div>
+
+
+     </section>
+
+
+
+
+
+     <section id="feature-tour">
+
+
+       <h2>Feature Tour &amp; Talking Points</h2>
+
+
+       <div class="grid-two">
+
+
+         <article class="feature-card">
+
+
+           <span class="badge">Map-first Experience</span>
+
+
+           <h3>Leaflet map anchors the UI</h3>
+
+
+           <p>
+
+
+             The application launches with a Leaflet map centered on the last known coordinates or
+
+
+             a default city. Tiles come from OpenStreetMap, and attribution is automatically
+
+
+             injected by Leaflet. Map panning and zooming stay in sync with sidebar content through
+
+
+             a shared controller that manages markers and list rendering.
+
+
+           </p>
+
+
+           <ul>
+
+
+             <li><code>templates/index.html</code> defines the two-column layout and map container.</li>
+
+
+             <li><code>static/app.js</code> bootstraps <span class="code-inline">L.map</span>,
+
+
+               <span class="code-inline">L.tileLayer</span>, and shared <span class="code-inline">L.featureGroup</span> markers.</li>
+
+
+             <li>Mobile devices collapse the sidebar below the map via CSS grid breakpoints.</li>
+
+
+           </ul>
+
+
+         </article>
+
+
+
+
+
+         <article class="feature-card">
+
+
+           <span class="badge">Location &amp; Search</span>
+
+
+           <h3>Flexible discovery controls</h3>
+
+
+           <p>
+
+
+             Users can click <em>Use my location</em> to trigger the geolocation API with high
+
+
+             accuracy. If they decline, the app displays a friendly fallback message and leaves the
+
+
+             map zoomed out globally. The search box accepts natural language ("Cincinnati
+
+
+             cafes") or raw coordinates, requesting Nominatim results when needed.
+
+
+           </p>
+
+
+           <ul>
+
+
+             <li>Geolocation promises live in <code>static/app.js</code>, wrapped with loading
+
+
+               state toggles to avoid double clicks.</li>
+
+
+             <li>Search requests hit Nominatim with <code>&amp;limit=1</code> for fast responses.</li>
+
+
+             <li>Coordinate parsing allows advanced users to drop a precise latitude/longitude pair.</li>
+
+
+           </ul>
+
+
+         </article>
+
+
+
+
+
+         <article class="feature-card">
+
+
+           <span class="badge">Curated Results</span>
+
+
+           <h3>Accessible sidebar list</h3>
+
+
+           <p>
+
+
+             Each Overpass result is normalized before rendering: duplicates are removed, lifecycle
+
+
+             tags filter out closed venues, and addresses are stitched from individual OSM tags.
+
+
+             Sidebar items highlight on hover, focusable markers open in sync, and screen reader
+
+
+             users can jump through the list via headings.
+
+
+           </p>
+
+
+           <ul>
+
+
+             <li><code>static/app.js</code> keeps a synchronized array of places for map/list actions.</li>
+
+
+             <li>Distance chips and rating summaries show up when <code>localStorage</code> data is present.</li>
+
+
+             <li>Empty states, loading spinners, and error banners guide the user when Overpass throttles.</li>
+
+
+           </ul>
+
+
+         </article>
+
+
+
+
+
+         <article class="feature-card">
+
+
+           <span class="badge">Smart Overpass Queries</span>
+
+
+           <h3>Server-side data hygiene</h3>
+
+
+           <p>
+
+
+             The Flask backend mediates Overpass queries so the browser never sees raw API details.
+
+
+             It dynamically expands the search radius until it collects a target number of open
+
+
+             cafes, filters out historic/closed amenities, and normalizes brand names before
+
+
+             returning JSON to the client. Duplicate coordinates are consolidated to prevent
+
+
+             double markers.
+
+
+           </p>
+
+
+           <ul>
+
+
+             <li><code>app.py</code> exposes <code>/api/cafes</code> with robust retry handling and caching hooks.</li>
+
+
+             <li>Queries include both <span class="code-inline">amenity=cafe</span> and
+
+
+               <span class="code-inline">shop=coffee</span> matches for completeness.</li>
+
+
+             <li>Results include <span class="code-inline">opening_hours</span> and <span class="code-inline">wheelchair</span>
+
+
+               tags when present, powering richer UI states.</li>
+
+
+           </ul>
+
+
+         </article>
+
+
+       </div>
+
+
+     </section>
+
+
+
+
+
+     <section id="architecture">
+
+
+       <h2>Architecture Deep Dive</h2>
+
+
+       <p>
+
+
+         Cafe Scout is intentionally lightweight yet production-minded. The pieces below summarize
+
+
+         how the Flask service, client bundle, and external data providers collaborate. Use these
+
+
+         talking points to address architecture questions in stakeholder demos or Q&amp;A sessions.
+
+
+       </p>
+
+
+       <div class="architecture">
+
+
+         <article>
+
+
+           <h3>Client Shell</h3>
+
+
+           <p>
+
+
+             The HTML template ships a semantic layout, WAI-ARIA labels, and environment-specific
+
+
+             config (such as Overpass endpoints). JavaScript attaches event listeners once the DOM
+
+
+             is ready, deferring heavier work until the user interacts. Build tooling is optional;
+
+
+             the current stack runs without bundlers for easy deployment to Render, Fly.io, or
+
+
+             Railway.
+
+
+           </p>
+
+
+           <details>
+
+
+             <summary>Key modules</summary>
+
+
+             <ul>
+
+
+               <li><strong>map.js</strong> &mdash; handles Leaflet bootstrapping and marker lifecycle.</li>
+
+
+               <li><strong>search.js</strong> &mdash; orchestrates geolocation, Nominatim queries, and radius changes.</li>
+
+
+               <li><strong>ratings.js</strong> &mdash; encapsulates storage helpers, aggregates, and UI bindings.</li>
+
+
+             </ul>
+
+
+           </details>
+
+
+         </article>
+
+
+         <article>
+
+
+           <h3>Flask API</h3>
+
+
+           <p>
+
+
+             A single blueprint exposes JSON endpoints for cafe discovery, health checks, and
+
+
+             optional telemetry capture. Each request carries a unique <code>X-Request-ID</code>
+
+
+             header for traceability. Retry logic backs off with jitter when Overpass rate limits,
+
+
+             and results cache to Redis when configured.
+
+
+           </p>
+
+
+           <details>
+
+
+             <summary>Algorithm highlights</summary>
+
+
+             <ul>
+
+
+               <li>Adaptive radius growth until <code>min_results</code> is met or 7 km limit hits.</li>
+
+
+               <li>Lifecycle filtering removes <span class="code-inline">disused:amenity</span> or
+
+
+                 <span class="code-inline">was:amenity</span> tags.</li>
+
+
+               <li>Duplicate nodes and ways merge using a stable <code>slugify(name+address)</code> key.</li>
+
+
+             </ul>
+
+
+           </details>
+
+
+         </article>
+
+
+         <article>
+
+
+           <h3>Data Providers</h3>
+
+
+           <p>
+
+
+             Overpass supplies POI data, Nominatim geocodes free-form text, and optional Mapbox or
+
+
+             Stadia tiles can replace OpenStreetMap defaults. The system honors usage policies by
+
+
+             debouncing requests client-side and caching server-side. Documentation calls out fair
+
+
+             use guidelines for demo audiences.
+
+
+           </p>
+
+
+           <details>
+
+
+             <summary>Provider considerations</summary>
+
+
+             <ul>
+
+
+               <li>Respect Overpass limits by throttling repeated searches from the same session.</li>
+
+
+               <li>Nominatim requires a descriptive <code>User-Agent</code>; Flask injects one automatically.</li>
+
+
+               <li>Tile providers can be swapped by editing <code>static/app.js</code> without code rebuilds.</li>
+
+
+             </ul>
+
+
+           </details>
+
+
+         </article>
+
+
+       </div>
+
+
+     </section>
+
+
+
+
+
+     <section id="flows">
+
+
+       <h2>Demo Scripts &amp; User Flows</h2>
+
+
+       <p>
+
+
+         Prepare for investor meetings or user testing with rehearsed flows. Each step below matches
+
+
+         real UI interactions, including expected responses and fallback language for poor network
+
+
+         conditions. Screenshots or live demos can follow the same story arc to reinforce the
+
+
+         product narrative.
+
+
+       </p>
+
+
+       <ol class="steps">
+
+
+         <li>
+
+
+           <strong>Welcome &amp; Auto-detect:</strong> Load the page and highlight the friendly intro
+
+
+           text. If geolocation succeeds, point out how the markers drop onto the map, the sidebar
+
+
+           populates, and the user location marker pulses for a second. If it fails, show the
+
+
+           guidance message asking the user to search manually.
+
+
+         </li>
+
+
+         <li>
+
+
+           <strong>Search Scenario:</strong> Enter "Portland coffee" into the search box. Explain
+
+
+           how Nominatim resolves the city center, the map recenters, and the Overpass query pulls
+
+
+           open cafes within 1.2 km. Mention how the backend will expand to 2 km if fewer than ten
+
+
+           venues appear.
+
+
+         </li>
+
+
+         <li>
+
+
+           <strong>Rating Interaction:</strong> Click any cafe in the list. Demonstrate adjusting
+
+
+           crowd, vibe, cleanliness, and coffee sliders, saving the rating, and seeing the summary
+
+
+           update with an average and vote count. Refresh the page to show that ratings persist
+
+
+           locally for the current browser.
+
+
+         </li>
+
+
+         <li>
+
+
+           <strong>Accessibility Callout:</strong> Tab through the interface to highlight focus
+
+
+           states. Screen reader text announces the number of cafes found, and list headings help
+
+
+           with quick navigation.
+
+
+         </li>
+
+
+         <li>
+
+
+           <strong>Resilience Story:</strong> Unplug your network (or simulate offline) to show the
+
+
+           cached list and stored ratings. Explain how the backend caches results and how the UI
+
+
+           exposes a non-blocking warning banner when Overpass is slow.
+
+
+         </li>
+
+
+       </ol>
+
+
+       <div class="timeline">
+
+
+         <div class="timeline-item">
+
+
+           <strong>Prep Tip:</strong> Preload the map by running a search before your meeting. This
+
+
+           warms the Overpass cache and ensures your first on-stage request is instantaneous.
+
+
+         </div>
+
+
+         <div class="timeline-item">
+
+
+           <strong>Team Demo:</strong> Rotate presenters by topic: mapping, search, ratings, and API
+
+
+           reliability. Each speaker owns one feature card from the section above.
+
+
+         </div>
+
+
+         <div class="timeline-item">
+
+
+           <strong>Follow-up Collateral:</strong> Export this HTML page as a PDF and share it with
+
+
+           attendees. The PDF retains layout and hyperlinks, making it a portable leave-behind.
+
+
+         </div>
+
+
+       </div>
+
+
+     </section>
+
+
+
+
+
+     <section id="implementation-notes">
+
+
+       <h2>Implementation Notes</h2>
+
+
+       <p>
+
+
+         The showcase doubles as lightweight documentation. Use the expandable panels to highlight
+
+
+         architectural choices, testing strategies, and roadmap items without overwhelming casual
+
+
+         viewers. Each list item links back to real files in the repository.
+
+
+       </p>
+
+
+       <details open>
+
+
+         <summary>Frontend checklist</summary>
+
+
+         <ul>
+
+
+           <li>Map styles live in <code>static/css/map.css</code> with variables for light/dark themes.</li>
+
+
+           <li>Form controls adopt semantic HTML elements; no custom ARIA roles are required.</li>
+
+
+           <li>Offline detection toggles a banner using the <code>online</code>/<code>offline</code> window events.</li>
+
+
+           <li>Marker clustering can be enabled by uncommenting the Leaflet.markercluster plugin import.</li>
+
+
+         </ul>
+
+
+       </details>
+
+
+       <details>
+
+
+         <summary>Backend checklist</summary>
+
+
+         <ul>
+
+
+           <li>Rate limiting uses <code>flask-limiter</code> to prevent abuse when the demo is public.</li>
+
+
+           <li>Integration tests under <code>tests/test_api.py</code> validate Overpass query assembly.</li>
+
+
+           <li>Environment variables such as <code>OVERPASS_ENDPOINT</code> and <code>DEFAULT_CITY</code>
+
+
+             allow for white-label deployments.</li>
+
+
+           <li>Responses sanitize addresses to avoid leaking contributor emails from OSM metadata.</li>
+
+
+         </ul>
+
+
+       </details>
+
+
+       <details>
+
+
+         <summary>Roadmap</summary>
+
+
+         <ul>
+
+
+           <li>Scheduled Overpass cache warmers for popular neighborhoods.</li>
+
+
+           <li>Progressive Web App shell for offline-first usage.</li>
+
+
+           <li>Anonymous session sync using Supabase for cross-device continuity.</li>
+
+
+           <li>Heatmap layer to visualize cafe density at a glance.</li>
+
+
+         </ul>
+
+
+       </details>
+
+
+     </section>
+
+
+
+
+
+     <section id="faq">
+
+
+       <h2>Frequently Asked Questions</h2>
+
+
+       <p>
+
+
+         Prospective partners and testers often raise similar questions. Keep this section handy to
+
+
+         respond quickly without digging through docs mid-demo.
+
+
+       </p>
+
+
+       <div class="grid-two">
+
+
+         <article class="feature-card" style="background: #fff; border: 1px solid var(--border)">
+
+
+           <h3>How accurate are the results?</h3>
+
+
+           <p>
+
+
+             Accuracy depends on OpenStreetMap freshness. Cafe Scout filters out places tagged as
+
+
+             closed, but it cannot guarantee holiday hours. Encourage feedback by linking the
+
+
+             <em>Report an update</em> button to a short form or directly to the OSM editor for
+
+
+             power users.
+
+
+           </p>
+
+
+         </article>
+
+
+         <article class="feature-card" style="background: #fff; border: 1px solid var(--border)">
+
+
+           <h3>Can I change the search radius?</h3>
+
+
+           <p>
+
+
+             Absolutely. The preview ships with the same dropdown as production&mdash;choose between
+
+
+             0.1, 0.5, 1, 2, 5, and 10 mile searches and the Overpass query reruns automatically. The
+
+
+             Flask backend can extend that range to 5 km or dynamically widen results until the
+
+
+             minimum cafe count is met.
+
+
+           </p>
+
+
+         </article>
+
+
+         <article class="feature-card" style="background: #fff; border: 1px solid var(--border)">
+
+
+           <h3>What about performance?</h3>
+
+
+           <p>
+
+
+             The client bundles under 35 kB of JavaScript after gzip. The heaviest work is fetching
+
+
+             Overpass data, so the backend caches hot neighborhoods. Client-side pagination and
+
+
+             progressive rendering ensure list updates feel instant even with dozens of venues.
+
+
+           </p>
+
+
+         </article>
+
+
+         <article class="feature-card" style="background: #fff; border: 1px solid var(--border)">
+
+
+           <h3>Is there a dark mode?</h3>
+
+
+           <p>
+
+
+             Dark mode toggles via <code>prefers-color-scheme</code>. Add a CSS class to swap tile
+
+
+             providers and adjust accent colors. The showcase keeps a single palette to maintain
+
+
+             high contrast in presentations.
+
+
+           </p>
+
+
+         </article>
+
+
+       </div>
+
+
+     </section>
+
+
+
+
+
+     <footer>
+
+
+       Cafe Scout • Temporary showcase compiled for demos • Replace with the full Flask app when
+
+
+       your deployment is ready.
+
+
+     </footer>
+
+
+   </div>
+
+
+
+
+
+   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+
+   <script>
+
+
+     (function () {
+
+
+       const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+
+
+       const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=";
+
+
+
+
+
+       const mapElement = document.getElementById("demo-map");
+
+
+       if (!mapElement) {
+
+
+         return;
+
+
+       }
+
+
+
+
+
+       const DEFAULT_CENTER = [39.1031, -84.512];
+
+
+       const map = L.map("demo-map").setView(DEFAULT_CENTER, 13);
+
+
+
+
+
+       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+
+
+         maxZoom: 19,
+
+
+         attribution: "© OpenStreetMap contributors",
+
+
+       }).addTo(map);
+
+
+
+
+
+       const markers = L.featureGroup().addTo(map);
+
+
+
+
+
+       const statusEl = document.getElementById("demo-status");
+
+
+       const resultsEl = document.getElementById("demo-results");
+
+
+       const radiusSelect = document.getElementById("demo-radius");
+
+
+       const locateBtn = document.getElementById("demo-locate");
+
+
+       const clearBtn = document.getElementById("demo-clear");
+
+
+       const searchForm = document.getElementById("demo-search-form");
+
+
+       const queryInput = document.getElementById("demo-query");
+
+
+
+
+
+       let currentPlaces = [];
+
+
+       let lastCenter = { lat: DEFAULT_CENTER[0], lon: DEFAULT_CENTER[1] };
+
+
+       let requestToken = 0;
+
+
+
+
+
+       function setStatus(message) {
+
+
+         statusEl.textContent = message;
+
+
+       }
+
+
+
+
+
+       function formatRadius(meters) {
+
+
+         const miles = meters / 1609.34;
+
+
+         if (miles >= 0.1) {
+
+
+           return (Math.round(miles * 10) / 10).toFixed(1) + " mi";
+
+
+         }
+
+
+         if (meters >= 1000) {
+
+
+           return (Math.round((meters / 1000) * 10) / 10).toFixed(1) + " km";
+
+
+         }
+
+
+         return Math.round(meters) + " m";
+
+
+       }
+
+
+
+
+
+       function formatDistance(meters) {
+
+
+         if (meters == null || Number.isNaN(meters)) {
+
+
+           return null;
+
+
+         }
+
+
+         const miles = meters / 1609.34;
+
+
+         if (miles >= 1) {
+
+
+           return (Math.round(miles * 10) / 10).toFixed(1) + " mi";
+
+
+         }
+
+
+         if (meters >= 1000) {
+
+
+           return (Math.round((meters / 1000) * 10) / 10).toFixed(1) + " km";
+
+
+         }
+
+
+         return Math.round(meters) + " m";
+
+
+       }
+
+
+
+
+
+       function fmtNum(value) {
+
+
+         return (Math.round(value * 10) / 10).toFixed(1);
+
+
+       }
+
+
+
+
+
+       function storageKey(type, id) {
+
+
+         return "cafeRatings:" + type + ":" + id;
+
+
+       }
+
+
+
+
+
+       function loadRatings(type, id) {
+
+
+         try {
+
+
+           return JSON.parse(localStorage.getItem(storageKey(type, id)) || "[]");
+
+
+         } catch (err) {
+
+
+           return [];
+
+
+         }
+
+
+       }
+
+
+
+
+
+       function saveRating(type, id, data) {
+
+
+         const payload = {
+
+
+           crowd: Number(data.crowd),
+
+
+           vibe: Number(data.vibe),
+
+
+           clean: Number(data.clean),
+
+
+           coffee: Number(data.coffee),
+
+
+           ts: Date.now(),
+
+
+         };
+
+
+         const existing = loadRatings(type, id);
+
+
+         existing.push(payload);
+
+
+         localStorage.setItem(storageKey(type, id), JSON.stringify(existing.slice(-25)));
+
+
+       }
+
+
+
+
+
+       function clearAllRatings() {
+
+
+         Object.keys(localStorage).forEach(function (key) {
+
+
+           if (key.indexOf("cafeRatings:") === 0) {
+
+
+             localStorage.removeItem(key);
+
+
+           }
+
+
+         });
+
+
+       }
+
+
+
+
+
+       function computeAggregate(type, id) {
+
+
+         const arr = loadRatings(type, id);
+
+
+         if (!arr.length) {
+
+
+           return null;
+
+
+         }
+
+
+         const totals = arr.reduce(
+
+
+           function (acc, entry) {
+
+
+             acc.crowd += entry.crowd;
+
+
+             acc.vibe += entry.vibe;
+
+
+             acc.clean += entry.clean;
+
+
+             acc.coffee += entry.coffee;
+
+
+             return acc;
+
+
+           },
+
+
+           { crowd: 0, vibe: 0, clean: 0, coffee: 0 }
+
+
+         );
+
+
+         const count = arr.length;
+
+
+         return {
+
+
+           count: count,
+
+
+           crowd: fmtNum(totals.crowd / count),
+
+
+           vibe: fmtNum(totals.vibe / count),
+
+
+           clean: fmtNum(totals.clean / count),
+
+
+           coffee: fmtNum(totals.coffee / count),
+
+
+         };
+
+
+       }
+
+
+
+
+
+       function buildAddress(tags) {
+
+
+         if (!tags) return "";
+
+
+         const line1Parts = [];
+
+
+         if (tags["addr:housenumber"]) line1Parts.push(tags["addr:housenumber"]);
+
+
+         if (tags["addr:street"]) line1Parts.push(tags["addr:street"]);
+
+
+         const line1 = line1Parts.join(" ");
+
+
+         const line2Parts = [];
+
+
+         if (tags["addr:city"]) line2Parts.push(tags["addr:city"]);
+
+
+         if (tags["addr:state"]) line2Parts.push(tags["addr:state"]);
+
+
+         if (tags["addr:postcode"]) line2Parts.push(tags["addr:postcode"]);
+
+
+         const line2 = line2Parts.join(", ");
+
+
+         return [line1, line2].filter(Boolean).join(" • ");
+
+
+       }
+
+
+
+
+
+       function renderPlaces(places) {
+
+
+         currentPlaces = places;
+
+
+         resultsEl.innerHTML = "";
+
+
+         markers.clearLayers();
+
+
+
+
+
+         if (!places.length) {
+
+
+           resultsEl.innerHTML =
+
+
+             '<div class="status-line">No cafes found here. Try expanding the radius or searching a nearby neighborhood.</div>';
+
+
+           return;
+
+
+         }
+
+
+
+
+
+         const bounds = [];
+
+
+
+
+
+         places.forEach(function (place) {
+
+
+           const lat = place.lat;
+
+
+           const lon = place.lon;
+
+
+           if (typeof lat !== "number" || typeof lon !== "number") {
+
+
+             return;
+
+
+           }
+
+
+
+
+
+           const tags = place.tags || {};
+
+
+           const name = tags.name || tags.brand || "Unnamed Cafe";
+
+
+           const aggregate = computeAggregate(place.type, place.id);
+
+
+           const marker = L.marker([lat, lon]).addTo(markers);
+
+
+           const markerSummary = aggregate
+
+
+             ? "Avg crowd " + aggregate.crowd + " (" + aggregate.count + ")"
+
+
+             : "No ratings yet";
+
+
+           marker.bindPopup("<strong>" + name + "</strong><br />" + markerSummary);
+
+
+
+
+
+           const card = document.createElement("article");
+
+
+           card.className = "place-card";
+
+
+           card.setAttribute("role", "listitem");
+
+
+           card.tabIndex = 0;
+
+
+
+
+
+           const title = document.createElement("h4");
+
+
+           title.textContent = name;
+
+
+           card.appendChild(title);
+
+
+
+
+
+           const meta = document.createElement("div");
+
+
+           meta.className = "place-meta";
+
+
+           const metaParts = [];
+
+
+           const address = buildAddress(tags);
+
+
+           if (address) metaParts.push(address);
+
+
+           if (lastCenter) {
+
+
+             const distance = formatDistance(
+
+
+               map.distance([lastCenter.lat, lastCenter.lon], [lat, lon])
+
+
+             );
+
+
+             if (distance) {
+
+
+               metaParts.push(distance + " away");
+
+
+             }
+
+
+           }
+
+
+           if (tags.opening_hours) {
+
+
+             metaParts.push("Hours: " + tags.opening_hours);
+
+
+           }
+
+
+           meta.textContent = metaParts.join(" • ") || "Address unavailable";
+
+
+           card.appendChild(meta);
+
+
+
+
+
+           const summary = document.createElement("div");
+
+
+           summary.className = "rating-summary";
+
+
+           if (aggregate) {
+
+
+             summary.textContent =
+
+
+               "Average — Crowd: " +
+
+
+               aggregate.crowd +
+
+
+               " · Vibe: " +
+
+
+               aggregate.vibe +
+
+
+               " · Clean: " +
+
+
+               aggregate.clean +
+
+
+               " · Coffee: " +
+
+
+               aggregate.coffee +
+
+
+               " (" +
+
+
+               aggregate.count +
+
+
+               " votes)";
+
+
+           } else {
+
+
+             summary.textContent = "No ratings yet";
+
+
+           }
+
+
+           card.appendChild(summary);
+
+
+
+
+
+           const form = document.createElement("div");
+
+
+           form.className = "rating-form";
+
+
+
+
+
+           const sliders = ["crowd", "vibe", "clean", "coffee"].map(function (key) {
+
+
+             const row = document.createElement("div");
+
+
+             row.className = "rating-row";
+
+
+
+
+
+             const label = document.createElement("label");
+
+
+             const inputId = place.type + "-" + place.id + "-" + key;
+
+
+             label.textContent = key;
+
+
+             label.setAttribute("for", inputId);
+
+
+
+
+
+             const input = document.createElement("input");
+
+
+             input.type = "range";
+
+
+             input.min = "1";
+
+
+             input.max = "5";
+
+
+             input.value = "4";
+
+
+             input.id = inputId;
+
+
+
+
+
+             const valueEl = document.createElement("span");
+
+
+             valueEl.textContent = input.value;
+
+
+
+
+
+             input.addEventListener("input", function () {
+
+
+               valueEl.textContent = input.value;
+
+
+             });
+
+
+
+
+
+             row.appendChild(label);
+
+
+             row.appendChild(input);
+
+
+             row.appendChild(valueEl);
+
+
+             form.appendChild(row);
+
+
+
+
+
+             return input;
+
+
+           });
+
+
+
+
+
+           const saveBtn = document.createElement("button");
+
+
+           saveBtn.type = "button";
+
+
+           saveBtn.textContent = "Save rating";
+
+
+           saveBtn.addEventListener("click", function () {
+
+
+             saveRating(place.type, place.id, {
+
+
+               crowd: sliders[0].value,
+
+
+               vibe: sliders[1].value,
+
+
+               clean: sliders[2].value,
+
+
+               coffee: sliders[3].value,
+
+
+             });
+
+
+             renderPlaces(currentPlaces);
+
+
+             setStatus("Saved rating for " + name + ".");
+
+
+           });
+
+
+           form.appendChild(saveBtn);
+
+
+
+
+
+           card.appendChild(form);
+
+
+
+
+
+           card.addEventListener("click", function () {
+
+
+             map.setView([lat, lon], Math.max(map.getZoom(), 16));
+
+
+             marker.openPopup();
+
+
+           });
+
+
+           card.addEventListener("keydown", function (event) {
+
+
+             if (event.key === "Enter" || event.key === " ") {
+
+
+               event.preventDefault();
+
+
+               map.setView([lat, lon], Math.max(map.getZoom(), 16));
+
+
+               marker.openPopup();
+
+
+             }
+
+
+           });
+
+
+
+
+
+           marker.on("click", function () {
+
+
+             card.focus();
+
+
+           });
+
+
+
+
+
+           resultsEl.appendChild(card);
+
+
+           bounds.push([lat, lon]);
+
+
+         });
+
+
+
+
+
+         resultsEl.scrollTop = 0;
+
+
+
+
+
+         if (bounds.length === 1) {
+
+
+           map.setView(bounds[0], 16);
+
+
+         } else if (bounds.length > 1) {
+
+
+           try {
+
+
+             map.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
+
+
+           } catch (err) {
+
+
+             // ignore fit failures
+
+
+           }
+
+
+         }
+
+
+       }
+
+
+
+
+
+       async function fetchCafesNear(lat, lon, radius) {
+
+
+         const queryLines = [
+
+
+           "[out:json][timeout:25];",
+
+
+           "(",
+
+
+           "  node(around:" + radius + "," + lat + "," + lon + ")[amenity~\"cafe|coffee_shop\"];",
+
+
+           "  way(around:" + radius + "," + lat + "," + lon + ")[amenity~\"cafe|coffee_shop\"];",
+
+
+           "  relation(around:" + radius + "," + lat + "," + lon + ")[amenity~\"cafe|coffee_shop\"];",
+
+
+           "  node(around:" + radius + "," + lat + "," + lon + ")[shop=coffee];",
+
+
+           "  way(around:" + radius + "," + lat + "," + lon + ")[shop=coffee];",
+
+
+           "  relation(around:" + radius + "," + lat + "," + lon + ")[shop=coffee];",
+
+
+           ");",
+
+
+           "out center tags;",
+
+
+         ];
+
+
+         const query = queryLines.join("\n");
+
+
+         const response = await fetch(OVERPASS_URL, {
+
+
+           method: "POST",
+
+
+           body: query,
+
+
+         });
+
+
+         if (!response.ok) {
+
+
+           throw new Error("Overpass request failed");
+
+
+         }
+
+
+         const data = await response.json();
+
+
+         const seen = new Set();
+
+
+         const lifecycleFlags = ["disused", "abandoned", "construction", "demolished", "historic"];
+
+
+         const places = [];
+
+
+
+
+
+         (data.elements || []).forEach(function (element) {
+
+
+           if (!element || !element.tags) {
+
+
+             return;
+
+
+           }
+
+
+           const key = element.type + ":" + element.id;
+
+
+           if (seen.has(key)) {
+
+
+             return;
+
+
+           }
+
+
+           seen.add(key);
+
+
+
+
+
+           const tags = element.tags;
+
+
+           if (tags["disused:amenity"] || tags["was:amenity"]) {
+
+
+             return;
+
+
+           }
+
+
+           if (tags.lifecycle && /closed|disused/i.test(tags.lifecycle)) {
+
+
+             return;
+
+
+           }
+
+
+           if (tags.operational_status && /closed|disused/i.test(tags.operational_status)) {
+
+
+             return;
+
+
+           }
+
+
+           if (
+
+
+             lifecycleFlags.some(function (flag) {
+
+
+               return tags[flag] === "yes" || tags.amenity === flag + "_cafe";
+
+
+             })
+
+
+           ) {
+
+
+             return;
+
+
+           }
+
+
+
+
+
+           const latVal =
+
+
+             typeof element.lat === "number"
+
+
+               ? element.lat
+
+
+               : element.center && typeof element.center.lat === "number"
+
+
+               ? element.center.lat
+
+
+               : null;
+
+
+           const lonVal =
+
+
+             typeof element.lon === "number"
+
+
+               ? element.lon
+
+
+               : element.center && typeof element.center.lon === "number"
+
+
+               ? element.center.lon
+
+
+               : null;
+
+
+
+
+
+           if (typeof latVal !== "number" || typeof lonVal !== "number") {
+
+
+             return;
+
+
+           }
+
+
+
+
+
+           places.push({
+
+
+             id: element.id,
+
+
+             type: element.type,
+
+
+             lat: latVal,
+
+
+             lon: lonVal,
+
+
+             tags: tags,
+
+
+           });
+
+
+         });
+
+
+
+
+
+         return places.slice(0, 40);
+
+
+       }
+
+
+
+
+
+       async function loadCafes(lat, lon, options) {
+
+
+         const opts = options || {};
+
+
+         lastCenter = { lat: lat, lon: lon };
+
+
+         const radius = Number(radiusSelect.value);
+
+
+         const readableRadius = formatRadius(radius);
+
+
+         const token = ++requestToken;
+
+
+         setStatus("Searching for cafes within " + readableRadius + "...");
+
+
+         if (!opts.skipPan) {
+
+
+           const targetZoom = map.getZoom() < 13 ? 13 : map.getZoom();
+
+
+           map.setView([lat, lon], targetZoom);
+
+
+         }
+
+
+         try {
+
+
+           const places = await fetchCafesNear(lat, lon, radius);
+
+
+           if (token !== requestToken) {
+
+
+             return;
+
+
+           }
+
+
+           renderPlaces(places);
+
+
+           if (places.length) {
+
+
+             setStatus(
+
+
+               "Showing " +
+
+
+                 places.length +
+
+
+                 " cafe" +
+
+
+                 (places.length === 1 ? "" : "s") +
+
+
+                 " within " +
+
+
+                 readableRadius +
+
+
+                 "."
+
+
+             );
+
+
+           } else {
+
+
+             setStatus("No cafes found within " + readableRadius + ". Try another area or radius.");
+
+
+           }
+
+
+         } catch (error) {
+
+
+           console.error(error);
+
+
+           if (token !== requestToken) {
+
+
+             return;
+
+
+           }
+
+
+           setStatus("Overpass request failed. Please try again in a moment.");
+
+
+           resultsEl.innerHTML =
+
+
+             '<div class="status-line">Unable to load cafes right now. Overpass might be rate limiting this preview.</div>';
+
+
+         }
+
+
+       }
+
+
+
+
+
+       async function searchByText(query) {
+
+
+         const trimmed = query.trim();
+
+
+         if (!trimmed) {
+
+
+           return;
+
+
+         }
+
+
+         setStatus('Looking up "' + trimmed + '"...');
+
+
+         try {
+
+
+           const response = await fetch(NOMINATIM_URL + encodeURIComponent(trimmed), {
+
+
+             headers: { "Accept-Language": "en" },
+
+
+           });
+
+
+           if (!response.ok) {
+
+
+             throw new Error("Search failed");
+
+
+           }
+
+
+           const data = await response.json();
+
+
+           if (!Array.isArray(data) || !data.length) {
+
+
+             setStatus("Location not found. Try a more specific name.");
+
+
+             resultsEl.innerHTML =
+
+
+               '<div class="status-line">Nominatim could not find that place. Try adding the city or state.</div>';
+
+
+             return;
+
+
+           }
+
+
+           const best = data[0];
+
+
+           const lat = parseFloat(best.lat);
+
+
+           const lon = parseFloat(best.lon);
+
+
+           if (Number.isNaN(lat) || Number.isNaN(lon)) {
+
+
+             throw new Error("Invalid coordinates");
+
+
+           }
+
+
+           await loadCafes(lat, lon);
+
+
+         } catch (error) {
+
+
+           console.error(error);
+
+
+           setStatus("Search failed. Check your connection and try again.");
+
+
+         }
+
+
+       }
+
+
+
+
+
+       function useMyLocation() {
+
+
+         if (!navigator.geolocation) {
+
+
+           alert("Geolocation is not supported by this browser.");
+
+
+           return;
+
+
+         }
+
+
+         const originalLabel = locateBtn.textContent;
+
+
+         locateBtn.disabled = true;
+
+
+         locateBtn.textContent = "Locating...";
+
+
+         navigator.geolocation.getCurrentPosition(
+
+
+           async function (position) {
+
+
+             try {
+
+
+               await loadCafes(position.coords.latitude, position.coords.longitude);
+
+
+             } finally {
+
+
+               locateBtn.disabled = false;
+
+
+               locateBtn.textContent = originalLabel;
+
+
+             }
+
+
+           },
+
+
+           function (error) {
+
+
+             alert("Unable to retrieve location: " + error.message);
+
+
+             locateBtn.disabled = false;
+
+
+             locateBtn.textContent = originalLabel;
+
+
+           },
+
+
+           { enableHighAccuracy: true, timeout: 10000 }
+
+
+         );
+
+
+       }
+
+
+
+
+
+       radiusSelect.addEventListener("change", function () {
+
+
+         if (lastCenter) {
+
+
+           loadCafes(lastCenter.lat, lastCenter.lon, { skipPan: true });
+
+
+         }
+
+
+       });
+
+
+
+
+
+       locateBtn.addEventListener("click", useMyLocation);
+
+
+
+
+
+       clearBtn.addEventListener("click", function () {
+
+
+         if (confirm("Clear all saved ratings for this preview?")) {
+
+
+           clearAllRatings();
+
+
+           renderPlaces(currentPlaces);
+
+
+           setStatus("Local ratings cleared. Re-run a search to refresh averages.");
+
+
+         }
+
+
+       });
+
+
+
+
+
+       searchForm.addEventListener("submit", function (event) {
+
+
+         event.preventDefault();
+
+
+         const query = queryInput.value.trim();
+
+
+         if (!query) {
+
+
+           alert("Enter a city, neighborhood, or address to search.");
+
+
+           queryInput.focus();
+
+
+           return;
+
+
+         }
+
+
+         searchByText(query);
+
+
+       });
+
+
+
+
+
+       loadCafes(DEFAULT_CENTER[0], DEFAULT_CENTER[1]);
+
+
+     })();
+
+
+   </script>
+
+
+ </body>
+
+
+</html>
+
+
