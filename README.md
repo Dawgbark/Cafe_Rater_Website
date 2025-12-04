@@ -1,6 +1,7 @@
 # Cafe Rater
 
-![Cafe Rater logo](static/cafe-rater-logo.svg)
+![Cafe Rater logo](<img width="1536" height="1024" alt="CafeRater logo" src="https://github.com/user-attachments/assets/d412ddd5-c329-4e42-870e-f3e880f454b0" />
+)
 
 Cafe Rater is a small Flask + Leaflet experience that discovers nearby cafés using OpenStreetMap's Overpass API and displays them on a modern map/list UI. It supports geolocation-based discovery, free-text place search, adjustable radius selection, and quick focusing on cafés from the result list.
 
@@ -38,7 +39,8 @@ All external HTTP calls are stubbed in the tests, so no network is required. Cur
 - Leaflet map synchronized with a styled results list that shows distances and centers the map on selection.
 
 ## Demo and artifacts
-- Brand logo (used at the top of the page): [`static/cafe-rater-logo.svg`](static/cafe-rater-logo.svg)
+- Brand logo (used at the top of the page): [`static/cafe-rater-logo.svg`](<img width="1536" height="1024" alt="CafeRater logo" src="https://github.com/user-attachments/assets/0b355c82-ba52-4c69-9a55-22a667c30c34" />
+)
 - Design reference HTML prototypes: `colorscheme.html`, `temp_preview.html`, and `cafe_rating_app_standalone (1).html` (not required to run the app).
 
 ## Copilot reflection
